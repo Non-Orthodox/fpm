@@ -22,7 +22,7 @@ class fixed
     static_assert(std::is_integral<BaseType>::value, "BaseType must be an integral type");
     static_assert(FractionBits > 0, "FractionBits must be greater than zero");
     static_assert(FractionBits <= sizeof(BaseType) * 8 - 1, "BaseType must at least be able to contain entire fraction, with space for at least one integral bit");
-    static_assert(sizeof(IntermediateType) > sizeof(BaseType), "IntermediateType must be larger than BaseType");
+    static_assert((sizeof(IntermediateType) > sizeof(BaseType)) || (sizeof(BaseType)*8 - FractionBits > 1), "IntermediateType must be larger than BaseType");
     static_assert(std::is_signed<IntermediateType>::value == std::is_signed<BaseType>::value, "IntermediateType must have same signedness as BaseType");
 
     // Although this value fits in the BaseType in terms of bits, if there's only one integral bit, this value
@@ -85,14 +85,14 @@ public:
     template <unsigned int NumFractionBits, typename T, typename std::enable_if<(NumFractionBits > FractionBits)>::type* = nullptr>
     static constexpr inline fixed from_fixed_point(T value) noexcept
     {
-	// To correctly round the last bit in the result, we need one more bit of information.
-	// We do this by multiplying by two before dividing and adding the LSB to the real result.
-	return (EnableRounding) ? fixed(static_cast<BaseType>(
+      // To correctly round the last bit in the result, we need one more bit of information.
+      // We do this by multiplying by two before dividing and adding the LSB to the real result.
+      return (EnableRounding) ? fixed(static_cast<BaseType>(
              value / (T(1) << (NumFractionBits - FractionBits)) +
             (value / (T(1) << (NumFractionBits - FractionBits - 1)) % 2)),
-	    raw_construct_tag{}) :
-	    fixed(static_cast<BaseType>(value / (T(1) << (NumFractionBits - FractionBits))),
-	     raw_construct_tag{});
+            raw_construct_tag{}) :
+            fixed(static_cast<BaseType>(value / (T(1) << (NumFractionBits - FractionBits))),
+            raw_construct_tag{});
     }
 
     template <unsigned int NumFractionBits, typename T, typename std::enable_if<(NumFractionBits <= FractionBits)>::type* = nullptr>
@@ -153,19 +153,21 @@ public:
         return *this;
     }
 
+/*
     inline fixed& operator*=(const fixed& y) noexcept
     {
-	if (EnableRounding){
-	    // Normal fixed-point multiplication is: x * y / 2**FractionBits.
-	    // To correctly round the last bit in the result, we need one more bit of information.
-	    // We do this by multiplying by two before dividing and adding the LSB to the real result.
-	    auto value = (static_cast<IntermediateType>(m_value) * y.m_value) / (FRACTION_MULT / 2);
-	    m_value = static_cast<BaseType>((value / 2) + (value % 2));
-	} else {
-	    auto value = (static_cast<IntermediateType>(m_value) * y.m_value) / FRACTION_MULT;
-	    m_value = static_cast<BaseType>(value);
-	}
-	return *this;
+      if constexpr (EnableRounding){
+          // Normal fixed-point multiplication is: x * y / 2**FractionBits.
+          // To correctly round the last bit in the result, we need one more bit of information.
+          // We do this by multiplying by two before dividing and adding the LSB to the real result.
+          std::cout << m_value << "  " << m_value * y.m_value << '\n';
+          auto value = (static_cast<IntermediateType>(m_value) * y.m_value) / (FRACTION_MULT / 2);
+          m_value = static_cast<BaseType>((value / 2) + (value % 2));
+      } else {
+          auto value = (static_cast<IntermediateType>(m_value) * y.m_value) / FRACTION_MULT;
+          m_value = static_cast<BaseType>(value);
+      }
+      return *this;
     }
 
     template <typename I, typename std::enable_if<std::is_integral<I>::value>::type* = nullptr>
@@ -178,19 +180,19 @@ public:
     inline fixed& operator/=(const fixed& y) noexcept
     {
         assert(y.m_value != 0);
-	if (EnableRounding){
-	    // Normal fixed-point division is: x * 2**FractionBits / y.
-	    // To correctly round the last bit in the result, we need one more bit of information.
-	    // We do this by multiplying by two before dividing and adding the LSB to the real result.
-	    auto value = (static_cast<IntermediateType>(m_value) * FRACTION_MULT * 2) / y.m_value;
-	    m_value = static_cast<BaseType>((value / 2) + (value % 2));
-	} else {
-	    auto value = (static_cast<IntermediateType>(m_value) * FRACTION_MULT) / y.m_value;
-	    m_value = static_cast<BaseType>(value);
-	}
+        if constexpr (EnableRounding){
+            // Normal fixed-point division is: x * 2**FractionBits / y.
+            // To correctly round the last bit in the result, we need one more bit of information.
+            // We do this by multiplying by two before dividing and adding the LSB to the real result.
+            auto value = (static_cast<IntermediateType>(m_value) * FRACTION_MULT * 2) / y.m_value;
+            m_value = static_cast<BaseType>((value / 2) + (value % 2));
+        } else {
+            auto value = (static_cast<IntermediateType>(m_value) * FRACTION_MULT) / y.m_value;
+            m_value = static_cast<BaseType>(value);
+        }
         return *this;
     }
-
+*/
     template <typename I, typename std::enable_if<std::is_integral<I>::value>::type* = nullptr>
     inline fixed& operator/=(I y) noexcept
     {
@@ -254,6 +256,7 @@ constexpr inline fixed<B, I, F, R> operator-(T x, const fixed<B, I, F, R>& y) no
     return fixed<B, I, F, R>(x) -= y;
 }
 
+/*
 //
 // Multiplication
 //
@@ -297,6 +300,7 @@ constexpr inline fixed<B, I, F, R> operator/(T x, const fixed<B, I, F, R>& y) no
 {
     return fixed<B, I, F, R>(x) /= y;
 }
+*/
 
 //
 // Comparison operators
@@ -337,6 +341,36 @@ constexpr inline bool operator>=(const fixed<B, I, F, R>& x, const fixed<B, I, F
 {
     return x.raw_value() >= y.raw_value();
 }
+
+
+//
+// Mathematical functions
+//
+template <typename B, typename I, unsigned int F, bool R>
+constexpr inline fixed<B, I, F, R> abs(fixed<B, I, F, R> x) noexcept
+{
+    return (x >= fixed<B, I, F, R>{0}) ? x : -x;
+}
+
+template <typename B, typename I, unsigned int F, bool R>
+constexpr inline fixed<B, I, F, R> fmod(fixed<B, I, F, R> x, fixed<B, I, F, R> y) noexcept
+{
+    return
+        assert(y.raw_value() != 0),
+        fixed<B, I, F, R>::from_raw_value(x.raw_value() % y.raw_value());
+}
+
+template <typename B, typename I, unsigned int F, bool R>
+constexpr inline fixed<B, I, F, R> circmod(fixed<B, I, F, R> x, fixed<B, I, F, R> y) noexcept
+{
+    return
+        assert(y.raw_value() > 0),
+        fixed<B, I, F, R>::from_raw_value(
+          (x.raw_value() >= 0) ? (x.raw_value() % y.raw_value())
+          : ((x.raw_value() + 1) % y.raw_value() + (y.raw_value() - 1))
+        );
+}
+
 
 namespace detail
 {
