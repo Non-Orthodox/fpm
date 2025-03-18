@@ -178,6 +178,31 @@ constexpr inline fixed<B, I, F, R> rint(fixed<B, I, F, R> x) noexcept
 // Mathematical functions
 //
 template <typename B, typename I, unsigned int F, bool R>
+constexpr inline fixed<B, I, F, R> abs(fixed<B, I, F, R> x) noexcept
+{
+    return (x >= fixed<B, I, F, R>{0}) ? x : -x;
+}
+
+template <typename B, typename I, unsigned int F, bool R>
+constexpr inline fixed<B, I, F, R> fmod(fixed<B, I, F, R> x, fixed<B, I, F, R> y) noexcept
+{
+    return
+        assert(y.raw_value() != 0),
+        fixed<B, I, F, R>::from_raw_value(x.raw_value() % y.raw_value());
+}
+
+template <typename B, typename I, unsigned int F, bool R>
+constexpr inline fixed<B, I, F, R> circmod(fixed<B, I, F, R> x, fixed<B, I, F, R> y) noexcept
+{
+    return
+        assert(y.raw_value() > 0),
+        fixed<B, I, F, R>::from_raw_value(
+          (x.raw_value() >= 0) ? (x.raw_value() % y.raw_value())
+          : ((x.raw_value() + 1) % y.raw_value() + (y.raw_value() - 1))
+        );
+}
+
+template <typename B, typename I, unsigned int F, bool R>
 constexpr inline fixed<B, I, F, R> remainder(fixed<B, I, F, R> x, fixed<B, I, F, R> y) noexcept
 {
     return
